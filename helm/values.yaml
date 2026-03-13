@@ -22,15 +22,15 @@ grafana:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
-      - grafana.yourdomain.com        # <-- change this
+      - grafana.euroclasstravel.com
     tls:
       - secretName: grafana-tls
         hosts:
-          - grafana.yourdomain.com    # <-- change this
+          - grafana.euroclasstravel.com
 
   grafana.ini:
     server:
-      root_url: https://grafana.yourdomain.com  # <-- change this
+      root_url: https://grafana.euroclasstravel.com
     analytics:
       reporting_enabled: false
 
@@ -134,11 +134,11 @@ prometheus:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
-      - prometheus.yourdomain.com     # <-- change this if enabling
+      - prometheus.euroclasstravel.com
     tls:
       - secretName: prometheus-tls
         hosts:
-          - prometheus.yourdomain.com
+          - prometheus.euroclasstravel.com
 
 # =============================================================================
 # ALERTMANAGER
@@ -159,11 +159,11 @@ alertmanager:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
-      - alertmanager.yourdomain.com   # <-- change this if enabling
+      - alertmanager.euroclasstravel.com
     tls:
       - secretName: alertmanager-tls
         hosts:
-          - alertmanager.yourdomain.com
+          - alertmanager.euroclasstravel.com
 
   config:
     global:
