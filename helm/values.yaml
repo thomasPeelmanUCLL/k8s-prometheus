@@ -11,6 +11,12 @@ grafana:
   enabled: true
   adminPassword: ""  # leave empty for auto-generated
 
+  # -- Use Recreate instead of RollingUpdate to avoid ReadWriteOnce PVC conflicts.
+  # With RollingUpdate, the new pod tries to mount the PVC before the old pod releases it,
+  # causing init-chown-data to fail. Recreate stops the old pod first.
+  deploymentStrategy:
+    type: Recreate
+
   persistence:
     enabled: true
     size: 5Gi
