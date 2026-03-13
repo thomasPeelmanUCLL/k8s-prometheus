@@ -7,7 +7,6 @@ chartVersion: ""  # e.g. "69.3.0"
 # =============================================================================
 # GRAFANA
 # =============================================================================
-# Set to false if you're using the separate k8s-grafana repo
 grafana:
   enabled: true
   adminPassword: ""  # leave empty for auto-generated
@@ -20,8 +19,6 @@ grafana:
     enabled: true
     ingressClassName: traefik
     annotations:
-      # Using Cloudflare DNS-01 issuer because euroclasstravel.com is proxied
-      # through Cloudflare (orange cloud) — HTTP-01 would fail through the proxy
       cert-manager.io/cluster-issuer: letsencrypt-prod-cloudflare
     hosts:
       - grafana.euroclasstravel.com
@@ -36,7 +33,23 @@ grafana:
     analytics:
       reporting_enabled: false
 
-  # -- Dashboard providers: tells Grafana where to load dashboards from
+  # -- Explicitly declare the Prometheus datasource
+  # This ensures the ${DS_PROMETHEUS} variable used by community dashboards
+  # (e.g. cert-manager ID 20340) resolves correctly.
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          url: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+          access: proxy
+          isDefault: true
+          jsonData:
+            timeInterval: 30s
+
+  # -- Dashboard providers
   dashboardProviders:
     dashboardproviders.yaml:
       apiVersion: 1
@@ -79,7 +92,6 @@ grafana:
         revision: 1
         datasource: Prometheus
 
-  # -- Extra Grafana config for cert-manager dashboard folder
   sidecar:
     dashboards:
       enabled: true
