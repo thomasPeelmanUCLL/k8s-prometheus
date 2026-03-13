@@ -1,6 +1,13 @@
 name: Deploy kube-prometheus-stack
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'helm/values.yaml'
+      - 'alerts/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
     inputs:
       chart_version:
@@ -22,6 +29,11 @@ jobs:
         with:
           version: latest
 
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Configure kubectl
         uses: azure/k8s-set-context@v4
         with:
@@ -37,16 +49,20 @@ jobs:
         id: version
         run: |
           INPUT_VERSION="${{ github.event.inputs.chart_version }}"
-          VALUES_VERSION=$(grep 'chartVersion:' helm/values.yaml | awk '{print $2}' | tr -d '"')
+          VALUES_VERSION=$(yq '.chartVersion' helm/values.yaml | tr -d '"')
 
-          if [ -n "$INPUT_VERSION" ]; then
+          if [ -n "$INPUT_VERSION" ] && [ "$INPUT_VERSION" != "null" ]; then
             echo "version=$INPUT_VERSION" >> $GITHUB_OUTPUT
-          elif [ -n "$VALUES_VERSION" ]; then
+          elif [ -n "$VALUES_VERSION" ] && [ "$VALUES_VERSION" != "null" ] && [ "$VALUES_VERSION" != "\"\"" ]; then
             echo "version=$VALUES_VERSION" >> $GITHUB_OUTPUT
           else
             LATEST=$(helm search repo prometheus-community/kube-prometheus-stack --output json | jq -r '.[0].version')
             echo "version=$LATEST" >> $GITHUB_OUTPUT
           fi
+
+      - name: Strip custom keys from values
+        run: |
+          yq 'del(.chartVersion)' helm/values.yaml > /tmp/helm-values.yaml
 
       - name: Deploy kube-prometheus-stack
         run: |
@@ -54,7 +70,7 @@ jobs:
             --namespace monitoring \
             --create-namespace \
             --version ${{ steps.version.outputs.version }} \
-            -f helm/values.yaml \
+            -f /tmp/helm-values.yaml \
             --wait \
             --timeout 10m
 
