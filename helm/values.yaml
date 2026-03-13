@@ -20,7 +20,8 @@ grafana:
   persistence:
     enabled: true
     size: 5Gi
-    storageClassName: local-path
+    # Note: storageClassName intentionally omitted to avoid PVC immutability errors on upgrade.
+    # The existing PVC uses local-path which cannot be changed after creation.
 
   ingress:
     enabled: true
