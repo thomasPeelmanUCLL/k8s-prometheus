@@ -20,6 +20,7 @@ grafana:
   persistence:
     enabled: true
     size: 5Gi
+    storageClassName: local-path
 
   ingress:
     enabled: true
@@ -40,8 +41,7 @@ grafana:
       reporting_enabled: false
 
   # -- Explicitly declare the Prometheus datasource
-  # This ensures the ${DS_PROMETHEUS} variable used by community dashboards
-  # (e.g. cert-manager ID 20340) resolves correctly.
+  # uid: prometheus ensures ${DS_PROMETHEUS} variable resolves correctly in dashboards
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -96,7 +96,10 @@ grafana:
       cert-manager:
         gnetId: 20340
         revision: 1
-        datasource: Prometheus
+        # No 'datasource:' key here intentionally!
+        # This dashboard uses object-format UID references: {"type":"datasource","uid":"prometheus"}
+        # Adding 'datasource:' causes Helm to inject a sed replacement that corrupts those references.
+        # The datasource is resolved via uid: prometheus declared in the datasources section above.
 
   sidecar:
     dashboards:
