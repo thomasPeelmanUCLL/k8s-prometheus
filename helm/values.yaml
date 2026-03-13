@@ -34,8 +34,59 @@ grafana:
     analytics:
       reporting_enabled: false
 
-  # Additional dashboards from grafana.com
-  additionalDataSources: []
+  # -- Dashboard providers: tells Grafana where to load dashboards from
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: "Kubernetes"
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+        - name: cert-manager
+          orgId: 1
+          folder: "cert-manager"
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/cert-manager
+
+  # -- Dashboards auto-downloaded from grafana.com on deploy
+  dashboards:
+    default:
+      # Kubernetes cluster overview
+      kubernetes-cluster:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+      # Node exporter full (CPU, memory, disk, network per node)
+      node-exporter-full:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+      # Kubernetes pod/namespace overview
+      kubernetes-pods:
+        gnetId: 6417
+        revision: 1
+        datasource: Prometheus
+    cert-manager:
+      # cert-manager official community dashboard
+      # Shows: certificate expiry, ACME challenge success/failure, renewal rates
+      cert-manager:
+        gnetId: 20340
+        revision: 1
+        datasource: Prometheus
+
+  # -- Extra Grafana config for cert-manager dashboard folder
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL   # pick up ConfigMap dashboards from all namespaces
 
 # =============================================================================
 # PROMETHEUS
@@ -59,6 +110,23 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
+
+    # -- Additional scrape config to pick up cert-manager metrics
+    # cert-manager exposes metrics on port 9402 by default
+    additionalScrapeConfigs:
+      - job_name: cert-manager
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - cert-manager
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_name]
+            action: keep
+            regex: cert-manager
+          - source_labels: [__meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: tcp-prometheus-servicemonitor
 
   ingress:
     enabled: false  # enable if you want external access to Prometheus UI
