@@ -20,7 +20,9 @@ grafana:
     enabled: true
     ingressClassName: traefik
     annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
+      # Using Cloudflare DNS-01 issuer because euroclasstravel.com is proxied
+      # through Cloudflare (orange cloud) — HTTP-01 would fail through the proxy
+      cert-manager.io/cluster-issuer: letsencrypt-prod-cloudflare
     hosts:
       - grafana.euroclasstravel.com
     tls:
@@ -59,24 +61,19 @@ grafana:
   # -- Dashboards auto-downloaded from grafana.com on deploy
   dashboards:
     default:
-      # Kubernetes cluster overview
       kubernetes-cluster:
         gnetId: 7249
         revision: 1
         datasource: Prometheus
-      # Node exporter full (CPU, memory, disk, network per node)
       node-exporter-full:
         gnetId: 1860
         revision: 37
         datasource: Prometheus
-      # Kubernetes pod/namespace overview
       kubernetes-pods:
         gnetId: 6417
         revision: 1
         datasource: Prometheus
     cert-manager:
-      # cert-manager official community dashboard
-      # Shows: certificate expiry, ACME challenge success/failure, renewal rates
       cert-manager:
         gnetId: 20340
         revision: 1
@@ -86,18 +83,16 @@ grafana:
   sidecar:
     dashboards:
       enabled: true
-      searchNamespace: ALL   # pick up ConfigMap dashboards from all namespaces
+      searchNamespace: ALL
 
 # =============================================================================
 # PROMETHEUS
 # =============================================================================
 prometheus:
   prometheusSpec:
-    # How long to retain metrics data
     retention: 30d
     retentionSize: "10GiB"
 
-    # Persistent storage for metrics
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -106,13 +101,10 @@ prometheus:
             requests:
               storage: 20Gi
 
-    # Scrape all ServiceMonitors cluster-wide (not just same namespace)
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
     ruleSelectorNilUsesHelmValues: false
 
-    # -- Additional scrape config to pick up cert-manager metrics
-    # cert-manager exposes metrics on port 9402 by default
     additionalScrapeConfigs:
       - job_name: cert-manager
         kubernetes_sd_configs:
@@ -129,10 +121,10 @@ prometheus:
             regex: tcp-prometheus-servicemonitor
 
   ingress:
-    enabled: false  # enable if you want external access to Prometheus UI
+    enabled: false
     ingressClassName: traefik
     annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
+      cert-manager.io/cluster-issuer: letsencrypt-prod-cloudflare
     hosts:
       - prometheus.euroclasstravel.com
     tls:
@@ -154,10 +146,10 @@ alertmanager:
               storage: 1Gi
 
   ingress:
-    enabled: false  # enable if you want external access to Alertmanager UI
+    enabled: false
     ingressClassName: traefik
     annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
+      cert-manager.io/cluster-issuer: letsencrypt-prod-cloudflare
     hosts:
       - alertmanager.euroclasstravel.com
     tls:
@@ -173,14 +165,14 @@ alertmanager:
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 12h
-      receiver: 'null'  # change to 'slack' or 'email' below
+      receiver: 'null'
       routes:
         - matchers:
             - alertname = Watchdog
           receiver: 'null'
     receivers:
       - name: 'null'
-      # Uncomment and configure for Slack:
+      # Uncomment for Slack:
       # - name: slack
       #   slack_configs:
       #     - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
