@@ -1,0 +1,64 @@
+# Custom PrometheusRule examples
+# Apply with: kubectl apply -f alerts/custom-rules.yaml
+#
+# The Prometheus Operator will automatically pick these up.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: custom-alerts
+  namespace: monitoring
+  labels:
+    # These labels must match the ruleSelector in your Prometheus spec
+    app: kube-prometheus-stack
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: custom.node
+      interval: 1m
+      rules:
+        # Alert when a node has been NotReady for more than 2 minutes
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.node }} is not ready"
+            description: "Node {{ $labels.node }} has been NotReady for more than 2 minutes."
+
+        # Alert when node memory usage is above 85%
+        - alert: NodeMemoryHigh
+          expr: |
+            (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High memory usage on {{ $labels.instance }}"
+            description: "Memory usage is {{ $value | humanize }}% on {{ $labels.instance }}."
+
+    - name: custom.certificates
+      interval: 1h
+      rules:
+        # Alert when a cert expires in less than 7 days
+        - alert: CertificateExpiringSoon
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 7 * 24 * 3600
+          for: 1h
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate {{ $labels.name }} expiring soon"
+            description: "Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires in less than 7 days."
+
+    - name: custom.pods
+      interval: 1m
+      rules:
+        # Alert when a pod is crash-looping
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total[5m]) * 60 > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash-looping"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is restarting frequently."

@@ -1,0 +1,154 @@
+# kube-prometheus-stack Helm values
+# https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+
+# Pin chart version or leave empty for latest
+chartVersion: ""  # e.g. "69.3.0"
+
+# =============================================================================
+# GRAFANA
+# =============================================================================
+# Set to false if you're using the separate k8s-grafana repo
+grafana:
+  enabled: true
+  adminPassword: ""  # leave empty for auto-generated
+
+  persistence:
+    enabled: true
+    size: 5Gi
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - grafana.yourdomain.com        # <-- change this
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.yourdomain.com    # <-- change this
+
+  grafana.ini:
+    server:
+      root_url: https://grafana.yourdomain.com  # <-- change this
+    analytics:
+      reporting_enabled: false
+
+  # Additional dashboards from grafana.com
+  additionalDataSources: []
+
+# =============================================================================
+# PROMETHEUS
+# =============================================================================
+prometheus:
+  prometheusSpec:
+    # How long to retain metrics data
+    retention: 30d
+    retentionSize: "10GiB"
+
+    # Persistent storage for metrics
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+    # Scrape all ServiceMonitors cluster-wide (not just same namespace)
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+  ingress:
+    enabled: false  # enable if you want external access to Prometheus UI
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - prometheus.yourdomain.com     # <-- change this if enabling
+    tls:
+      - secretName: prometheus-tls
+        hosts:
+          - prometheus.yourdomain.com
+
+# =============================================================================
+# ALERTMANAGER
+# =============================================================================
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+
+  ingress:
+    enabled: false  # enable if you want external access to Alertmanager UI
+    ingressClassName: traefik
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - alertmanager.yourdomain.com   # <-- change this if enabling
+    tls:
+      - secretName: alertmanager-tls
+        hosts:
+          - alertmanager.yourdomain.com
+
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'null'  # change to 'slack' or 'email' below
+      routes:
+        - matchers:
+            - alertname = Watchdog
+          receiver: 'null'
+    receivers:
+      - name: 'null'
+      # Uncomment and configure for Slack:
+      # - name: slack
+      #   slack_configs:
+      #     - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+      #       channel: '#alerts'
+      #       title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}'
+      #       text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+# =============================================================================
+# NODE EXPORTER
+# =============================================================================
+nodeExporter:
+  enabled: true
+
+# =============================================================================
+# KUBE STATE METRICS
+# =============================================================================
+kubeStateMetrics:
+  enabled: true
+
+# =============================================================================
+# RESOURCE LIMITS
+# =============================================================================
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
